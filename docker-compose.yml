@@ -25,7 +25,8 @@ services:
       MYSQL_USER: user
       MYSQL_PASSWORD: password
     volumes:
-      - mysql-data:/Users/ankurpareek/Projects/exchange/mysql-data
+      - mysql-data:/var/lib/mysql
+#      - mysql-data:/Users/ankurpareek/Projects/exchange/mysql-data
     networks:
       - exchange-network
     ports:

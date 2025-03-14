@@ -9,7 +9,7 @@ use App\Models\CurrencyRate;
 
 class CurrencyRateService
 {
-    const BASE_CURRENCY = 'USD';
+    const BASE_CURRENCY = 'EUR';
     const CACHE_TTL = 8;
 
     public function convert(float $amount, string $fromCurrency, string $toCurrency, CurrencyRate | null $fromRate, CurrencyRate | null $toRate): float
@@ -22,7 +22,7 @@ class CurrencyRateService
         } else if($toCurrency === self::BASE_CURRENCY) {
             $convertedAmount = $amount / $fromRate->rate;
         } else {
-            $convertedAmount = $amount / $fromRate->rate;
+            $convertedAmount = ($amount / $fromRate->rate) * $toRate->rate;
         }
         return $convertedAmount;
     }
