@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\CurrencyRate;
 use App\Jobs\FetchCurrencyRates;
 use App\Services\CurrencyRateService;
+use Illuminate\Support\Facades\Log;
 
 class CurrencyConvert extends Command
 {
@@ -19,37 +20,44 @@ class CurrencyConvert extends Command
 
     public function handle()
     {
-        // Trigger the job to fetch the latest rates
-        FetchCurrencyRates::dispatchSync();
+        try {
+            // Trigger the job to fetch the latest rates
+            FetchCurrencyRates::dispatchSync();
 
-        $amount = $this->argument('amount');
-        $fromCurrency = strtoupper($this->argument('from_currency'));
-        $toCurrency = strtoupper($this->argument('to_currency'));
+            $amount = $this->argument('amount');
+            $fromCurrency = strtoupper($this->argument('from_currency'));
+            $toCurrency = strtoupper($this->argument('to_currency'));
 
-        if (!is_numeric($amount) || $amount <= 0) {
-            $this->error("Invalid amount: The amount must be a positive number.");
+            if (!is_numeric($amount) || $amount <= 0) {
+                $this->error("Invalid amount: The amount must be a positive number.");
+                return self::FAILURE;
+            }
+
+            if (!$this->isValidCurrency($fromCurrency) || !$this->isValidCurrency($toCurrency)) {
+                return self::FAILURE;
+            }
+
+            $fromRate = $this->getCurrencyRate($fromCurrency);
+            if ($fromCurrency !== CurrencyRateService::BASE_CURRENCY && !$fromRate) {
+                return self::FAILURE;
+            }
+
+            $toRate = $this->getCurrencyRate($toCurrency);
+            if ($toCurrency !== CurrencyRateService::BASE_CURRENCY && !$toRate) {
+                return self::FAILURE;
+            }
+
+            $convertedAmount = app(CurrencyRateService::class)->convert($amount, $fromCurrency, $toCurrency, $fromRate, $toRate);
+
+            $this->info("{$amount} {$fromCurrency} is equal to {$convertedAmount} {$toCurrency}.");
+
+            return self::SUCCESS;    
+        } catch (\Exception $e) {    
+            Log::error($e->getMessage());     
+            $this->error("An error occurred while converting the currency: {$e->getMessage()}");
             return self::FAILURE;
         }
 
-        if (!$this->isValidCurrency($fromCurrency) || !$this->isValidCurrency($toCurrency)) {
-            return self::FAILURE;
-        }
-
-        $fromRate = $this->getCurrencyRate($fromCurrency);
-        if ($fromCurrency !== CurrencyRateService::BASE_CURRENCY && !$fromRate) {
-            return self::FAILURE;
-        }
-
-        $toRate = $this->getCurrencyRate($toCurrency);
-        if ($toCurrency !== CurrencyRateService::BASE_CURRENCY && !$toRate) {
-            return self::FAILURE;
-        }
-
-        $convertedAmount = app(CurrencyRateService::class)->convert($amount, $fromCurrency, $toCurrency, $fromRate, $toRate);
-
-        $this->info("{$amount} {$fromCurrency} is equal to {$convertedAmount} {$toCurrency}.");
-
-        return self::SUCCESS;
     }
 
     private function getCurrencyRate(string $currency): ? CurrencyRate
